@@ -1,3 +1,10 @@
+# Pikuma 3d CPU Rendering Course but with LWJGL + SDL3 
+
+
+
+
+## How to Build Project 
+
 ### One jar containing every platform
 ```
 ./gradlew fatJarAllPlatforms

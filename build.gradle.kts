@@ -28,7 +28,7 @@ val osName = System.getProperty("os.name").lowercase()
 val osArch = System.getProperty("os.arch").lowercase()
 
 // ── Separate configuration to hold ALL natives ────────────────────────────────
-val allNatives: Configuration by configurations.creating
+//val allNatives: Configuration by configurations.creating
 
 //val lwjglNatives: String = when {
 //    osName.contains("windows") -> when {
@@ -68,9 +68,9 @@ dependencies {
 
     // ── Native jars for EVERY platform ───────────────────────────────────────
     lwjglNativesList.forEach { natives ->
-        allNatives("org.lwjgl:lwjgl::$natives")
-        allNatives("org.lwjgl:lwjgl-sdl::$natives")
-        allNatives("org.lwjgl:lwjgl-opengl::$natives")
+        runtimeOnly("org.lwjgl:lwjgl::$natives")
+        runtimeOnly("org.lwjgl:lwjgl-sdl::$natives")
+        runtimeOnly("org.lwjgl:lwjgl-opengl::$natives")
     }
 
 // ── OpenGL (optional – for rendering into the SDL window) ────────────────
@@ -113,11 +113,11 @@ tasks.register<Jar>("fatJarAllPlatforms") {
     })
 
     // ALL native jars for every platform
-    from({
-        allNatives
-            .filter { it.name.endsWith(".jar") }
-            .map { zipTree(it) }
-    })
+//    from({
+//        allNatives
+//            .filter { it.name.endsWith(".jar") }
+//            .map { zipTree(it) }
+//    })
 }
 
 // ── Per-platform slim jars (optional) ────────────────────────────────────────

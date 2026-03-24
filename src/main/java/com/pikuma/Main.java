@@ -1,15 +1,16 @@
 package com.pikuma;
 
-import org.lwjgl.sdl.SDLError;
-import org.lwjgl.sdl.SDLRender;
-import org.lwjgl.sdl.SDLVideo;
+import org.lwjgl.sdl.*;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
 
 import static org.lwjgl.sdl.SDLError.SDL_GetError;
+import static org.lwjgl.sdl.SDLEvents.SDL_EVENT_KEY_DOWN;
+import static org.lwjgl.sdl.SDLEvents.SDL_EVENT_QUIT;
 import static org.lwjgl.sdl.SDLInit.*;
 import static org.lwjgl.sdl.SDLProperties.*;
+import static org.lwjgl.sdl.SDLScancode.SDL_SCANCODE_ESCAPE;
 import static org.lwjgl.sdl.SDLVideo.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
 
@@ -33,6 +34,55 @@ public class Main {
     public static void main(String[] args) {
 
        running = initWindow();
+
+       setup();
+
+       while (running) {
+           processInput();
+           update();
+           render();
+       }
+    }
+
+    private static void render() {
+        SDLRender.SDL_SetRenderDrawColor(rendererHandle, (byte) 255, (byte) 0, (byte) 0, (byte) 255);
+        SDLRender.SDL_RenderClear(rendererHandle);
+
+
+
+        SDLRender.SDL_RenderPresent(windowHandle);
+    }
+
+    private static void update() {
+    }
+
+    private static void processInput() {
+      try(MemoryStack stack = stackPush()) {
+          SDL_Event event  = SDL_Event.malloc(stack);
+          while(SDLEvents.SDL_PollEvent(event)) {
+              int type = event.type();
+
+              switch (type) {
+                  case SDL_EVENT_QUIT -> {
+                      System.out.println("[SDL3] Quit event — shutting down.");
+                      running = false;
+                  }
+                  case SDL_EVENT_KEY_DOWN -> {
+                      int scancode = event.key().scancode();
+                      System.out.printf("[SDL3] Key down — scancode %d%n", scancode);
+                      // Scancode constants live in SDLScancode
+                      if (scancode == SDL_SCANCODE_ESCAPE) {
+                          running = false;
+                      }
+
+                  }
+              }
+          }
+      }
+        
+    }
+
+    private static void setup() {
     }
 
 
