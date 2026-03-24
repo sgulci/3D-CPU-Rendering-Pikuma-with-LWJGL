@@ -45,12 +45,12 @@ public class Main {
     }
 
     private static void render() {
-        SDLRender.SDL_SetRenderDrawColor(rendererHandle, (byte) 255, (byte) 0, (byte) 0, (byte) 255);
+        SDLRender.SDL_SetRenderDrawColorFloat(rendererHandle,  1.0f, 0.0f, 0.0f, 1.0f);
         SDLRender.SDL_RenderClear(rendererHandle);
 
 
 
-        SDLRender.SDL_RenderPresent(windowHandle);
+        SDLRender.SDL_RenderPresent(rendererHandle);
     }
 
     private static void update() {
