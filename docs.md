@@ -139,3 +139,47 @@ color    = 0xFF FF 00 00
 & 0xFF   = 0x00 00 00 FF   ← mask isolates only the bottom 8 bits ✓
 ```
 
+## SDL DisplayMode difference
+
+SDL2 used integer indices starting from 0:
+```
+java// SDL2 — index based
+SDL_GetCurrentDisplayMode(0, &mode); // 0 = first display
+```
+
+SDL3 changed to display IDs which are opaque non-zero values:
+```
+java// SDL3 — ID based, ID is never 0
+// 0 is always invalid, real IDs are system-assigned values like 1, 72, etc.
+SDL_GetCurrentDisplayMode(displayID);
+```
+
+So passing 0 in SDL3 is always invalid — you must query the real ID via SDL_GetDisplays() first.
+
+
+## SDL2 vs SDL3 SDL_SetWindowFullscreen
+
+SDL2 had multiple fullscreen flags causing confusion:
+```
+java// SDL2 — three different flags
+SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);         // true fullscreen, changes resolution
+SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP); // borderless windowed fullscreen
+SDL_SetWindowFullscreen(window, 0);                             // windowed mode
+```
+
+SDL3 simplified it to a simple boolean:
+```
+java// SDL3 — just a boolean
+SDL_SetWindowFullscreen(window, true);  // fullscreen
+SDL_SetWindowFullscreen(window, false); // windowed
+```
+
+SDL3 fullscreen is always borderless windowed style by default
+(like SDL_WINDOW_FULLSCREEN_DESKTOP in SDL2). 
+If you want to change resolution (true exclusive fullscreen), SDL3 uses a separate function:
+```
+java// SDL3 — exclusive fullscreen with specific display mode
+SDL_DisplayMode mode = checkSdlError(SDL_GetCurrentDisplayMode(displayID));
+SDL_SetWindowFullscreenMode(window, mode); // set the mode first
+SDL_SetWindowFullscreen(window, true);     // then go fullscreen
+```

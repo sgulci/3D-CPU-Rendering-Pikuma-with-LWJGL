@@ -6,6 +6,7 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.nio.LongBuffer;
 
 import static org.lwjgl.sdl.SDLError.SDL_GetError;
 import static org.lwjgl.sdl.SDLEvents.SDL_EVENT_KEY_DOWN;
@@ -22,8 +23,8 @@ public class Main {
 
     // ── Window configuration ─────────────────────────────────────────────────
     private static final String TITLE      = "LWJGL + SDL3 Pikuma Window";
-    private static final int    WIDTH      = 1280;
-    private static final int    HEIGHT     = 720;
+    private static int    WIDTH      = 1280;
+    private static int    HEIGHT     = 720;
     private static final int    TARGET_FPS = 60;
     private static final long   FRAME_MS   = 1000L / TARGET_FPS;
 
@@ -53,29 +54,50 @@ public class Main {
         cleanup();
     }
 
+    static boolean initWindow() {
+
+        checkSdlError(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS));
+
+        // 1. get all display IDs
+        IntBuffer displays = checkSdlError(SDL_GetDisplays());
+
+        // 2. get the first display ID
+        int displayID = displays.get(0);
+
+        SDL_DisplayMode displayMode =checkSdlError(SDLVideo.SDL_GetCurrentDisplayMode(displayID));
+        HEIGHT = displayMode.h();
+        WIDTH = displayMode.w();
+
+         int props = SDL_CreateProperties();
+        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED));
+        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED));
+        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, WIDTH));
+        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, HEIGHT));
+        checkSdlError(SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, TITLE));
+        checkSdlError(SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true));
+
+        // create window
+
+        windowHandle = checkSdlError(SDLVideo.SDL_CreateWindowWithProperties(props));
+
+        // create renderer
+        // We do not need to complicate things as selecting rendering pipeline, default selections enough
+        rendererHandle = checkSdlError(SDLRender.SDL_CreateRenderer(windowHandle,""));
+
+        SDLVideo.SDL_SetWindowFullscreen(windowHandle,true);
+        printWindowInfo();
+        return true;
+    }
+
     private static void render() {
-        SDLRender.SDL_SetRenderDrawColorFloat(rendererHandle,  1.0f, 0.0f, 0.0f, 1.0f);
-        SDLRender.SDL_RenderClear(rendererHandle);
+        checkSdlError( SDLRender.SDL_SetRenderDrawColorFloat(rendererHandle,  1.0f, 0.0f, 0.0f, 1.0f));
+        checkSdlError(SDLRender.SDL_RenderClear(rendererHandle));
 
         renderColorBuffer();
         clearColorBuffer(0xFFFFFFFF);
 
-        SDLRender.SDL_RenderPresent(rendererHandle);
+        checkSdlError(SDLRender.SDL_RenderPresent(rendererHandle));
     }
-
-    // ────────────────────────────────────────────────────────────────────────
-    //  Cleanup
-    // ────────────────────────────────────────────────────────────────────────
-
-    private static void cleanup() {
-        if (rendererHandle != 0) SDLRender.SDL_DestroyRenderer(rendererHandle);
-        if (windowHandle   != 0) SDLVideo.SDL_DestroyWindow(windowHandle);
-        if (colorBufferTextureHandle != null)SDLRender.SDL_DestroyTexture(colorBufferTextureHandle);
-        SDLInit.SDL_Quit();
-        System.out.println("[SDL3] Shutdown complete.");
-    }
-
-
 
     private static void update() {
     }
@@ -110,11 +132,14 @@ public class Main {
         //  Allocate pixel buffer once — reuse every frame
         colorPixelBuffer = MemoryUtil.memAlloc(WIDTH * HEIGHT * 4);
         // texture for show color buffer
-        colorBufferTextureHandle = SDLRender.SDL_CreateTexture(rendererHandle,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,WIDTH,HEIGHT);
+        colorBufferTextureHandle = checkSdlError(SDLRender.SDL_CreateTexture(rendererHandle,
+                                                            SDL_PIXELFORMAT_ARGB8888,
+                                                            SDL_TEXTUREACCESS_STREAMING,
+                                                            WIDTH, HEIGHT));
     }
 
     private static void clearColorBuffer(int color) {
-        colorPixelBuffer.clear();
+//        colorPixelBuffer.clear();
 
         // extract ARGB8888 channels from packed int color (0xAARRGGBB)
         byte a = (byte) ((color >> 24) & 0xFF);
@@ -139,34 +164,9 @@ public class Main {
     }
 
     static void renderColorBuffer(){
-        SDLRender.SDL_UpdateTexture(colorBufferTextureHandle,null,colorPixelBuffer,WIDTH *4);
-        SDLRender.SDL_RenderTexture(rendererHandle,colorBufferTextureHandle,null,null);
+       checkSdlError(SDLRender.SDL_UpdateTexture(colorBufferTextureHandle,null,colorPixelBuffer,WIDTH *4));
+       checkSdlError(SDLRender.SDL_RenderTexture(rendererHandle,colorBufferTextureHandle,null,null));
     }
-
-    static boolean initWindow() {
-
-        checkSdlError(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS));
-
-        int props = SDL_CreateProperties();
-        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED));
-        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED));
-        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, WIDTH));
-        checkSdlError(SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, HEIGHT));
-        checkSdlError(SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, TITLE));
-        checkSdlError(SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true));
-
-        // create window
-
-        windowHandle = checkSdlError(SDLVideo.SDL_CreateWindowWithProperties(props));
-
-        // create renderer
-        // We do not need to complicate things as selecting rendering pipeline, default selections enough
-        rendererHandle = checkSdlError(SDLRender.SDL_CreateRenderer(windowHandle,""));
-
-        printWindowInfo();
-        return true;
-    }
-
 
     private static void printWindowInfo() {
         try (MemoryStack stack = stackPush()) {
@@ -184,6 +184,20 @@ public class Main {
         }
     }
 
+    // ────────────────────────────────────────────────────────────────────────
+    //  Cleanup
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static void cleanup() {
+        if (rendererHandle != 0) SDLRender.SDL_DestroyRenderer(rendererHandle);
+        if (windowHandle   != 0) SDLVideo.SDL_DestroyWindow(windowHandle);
+        if (colorBufferTextureHandle != null)SDLRender.SDL_DestroyTexture(colorBufferTextureHandle);
+        SDLInit.SDL_Quit();
+        System.out.println("[SDL3] Shutdown complete.");
+    }
+
+
+
 
     private static  void checkSdlError(boolean success) {
         if (!success) {
@@ -196,5 +210,12 @@ public class Main {
             throw new IllegalStateException("SDL error encountered: " + SDL_GetError());
         }
         return resultPointer;
+    }
+
+    private static <T> T checkSdlError(T result) {
+        if (result == null) {
+            throw new IllegalStateException("SDL error: " + SDL_GetError());
+        }
+        return result;
     }
 }
