@@ -2,14 +2,18 @@ package com.pikuma;
 
 import org.lwjgl.sdl.*;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 import static org.lwjgl.sdl.SDLError.SDL_GetError;
 import static org.lwjgl.sdl.SDLEvents.SDL_EVENT_KEY_DOWN;
 import static org.lwjgl.sdl.SDLEvents.SDL_EVENT_QUIT;
 import static org.lwjgl.sdl.SDLInit.*;
+import static org.lwjgl.sdl.SDLPixels.SDL_PIXELFORMAT_ARGB8888;
 import static org.lwjgl.sdl.SDLProperties.*;
+import static org.lwjgl.sdl.SDLRender.SDL_TEXTUREACCESS_STREAMING;
 import static org.lwjgl.sdl.SDLScancode.SDL_SCANCODE_ESCAPE;
 import static org.lwjgl.sdl.SDLVideo.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
@@ -23,9 +27,12 @@ public class Main {
     private static final int    TARGET_FPS = 60;
     private static final long   FRAME_MS   = 1000L / TARGET_FPS;
 
+    private static ByteBuffer colorPixelBuffer;
+
     // ── SDL handles (0 == null / invalid) ────────────────────────────────────
     private static long windowHandle;
     private static long rendererHandle;
+    private static SDL_Texture colorBufferTextureHandle;
 
     // ── State ────────────────────────────────────────────────────────────────
     private static boolean running = false;
@@ -42,16 +49,33 @@ public class Main {
            update();
            render();
        }
+
+        cleanup();
     }
 
     private static void render() {
         SDLRender.SDL_SetRenderDrawColorFloat(rendererHandle,  1.0f, 0.0f, 0.0f, 1.0f);
         SDLRender.SDL_RenderClear(rendererHandle);
 
-
+        renderColorBuffer();
+        clearColorBuffer(0xFFFFFFFF);
 
         SDLRender.SDL_RenderPresent(rendererHandle);
     }
+
+    // ────────────────────────────────────────────────────────────────────────
+    //  Cleanup
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static void cleanup() {
+        if (rendererHandle != 0) SDLRender.SDL_DestroyRenderer(rendererHandle);
+        if (windowHandle   != 0) SDLVideo.SDL_DestroyWindow(windowHandle);
+        if (colorBufferTextureHandle != null)SDLRender.SDL_DestroyTexture(colorBufferTextureHandle);
+        SDLInit.SDL_Quit();
+        System.out.println("[SDL3] Shutdown complete.");
+    }
+
+
 
     private static void update() {
     }
@@ -83,8 +107,41 @@ public class Main {
     }
 
     private static void setup() {
+        //  Allocate pixel buffer once — reuse every frame
+        colorPixelBuffer = MemoryUtil.memAlloc(WIDTH * HEIGHT * 4);
+        // texture for show color buffer
+        colorBufferTextureHandle = SDLRender.SDL_CreateTexture(rendererHandle,SDL_PIXELFORMAT_ARGB8888,SDL_TEXTUREACCESS_STREAMING,WIDTH,HEIGHT);
     }
 
+    private static void clearColorBuffer(int color) {
+        colorPixelBuffer.clear();
+
+        // extract ARGB8888 channels from packed int color (0xAARRGGBB)
+        byte a = (byte) ((color >> 24) & 0xFF);
+        byte r = (byte) ((color >> 16) & 0xFF);
+        byte g = (byte) ((color >> 8)  & 0xFF);
+        byte b = (byte) ((color)       & 0xFF);
+
+
+        for (int y = 0; y < HEIGHT ; y++) {
+            for (int x = 0; x < WIDTH; x++) {
+                int index = (WIDTH * y + x) * 4; // 4 bytes per pixel
+
+                // ARGB8888 little-endian memory layout: [B][G][R][A]
+                colorPixelBuffer.put(index,     b);
+                colorPixelBuffer.put(index + 1, g);
+                colorPixelBuffer.put(index + 2, r);
+                colorPixelBuffer.put(index + 3, a);
+            }
+        }
+
+//        colorPixelBuffer.flip();
+    }
+
+    static void renderColorBuffer(){
+        SDLRender.SDL_UpdateTexture(colorBufferTextureHandle,null,colorPixelBuffer,WIDTH *4);
+        SDLRender.SDL_RenderTexture(rendererHandle,colorBufferTextureHandle,null,null);
+    }
 
     static boolean initWindow() {
 
