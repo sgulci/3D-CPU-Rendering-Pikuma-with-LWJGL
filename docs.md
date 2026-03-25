@@ -53,3 +53,89 @@ java:
 
 SDLInit.SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 ```
+
+## RenderCopy to RenderTexture 
+
+SDL2:
+```
+c// SDL2 - used integer rects
+SDL_RenderCopy(renderer, texture, &srcRect, &dstRect);
+```
+
+SDL3:
+```
+java// SDL3 LWJGL - uses float rects now (SDL_FRect)
+SDL_RenderTexture(renderer, texture, srcRect, dstRect);
+```
+
+The key change is SDL3 uses SDL_FRect (float rectangles) everywhere instead of
+
+## Representing buffer memory data in Java
+
+### The packed int color layout (ARGB8888)
+
+A single int is 32 bits. The color 0xFFFF0000 (opaque red) looks like this in memory:
+```
+Bit position:  31      24 23      16 15       8 7        0
+                ┌─────────┬──────────┬──────────┬─────────┐
+color bits:     │   0xFF  │   0xFF   │   0x00   │  0x00   │
+                │    A    │    R     │    G     │    B    │
+                └─────────┴──────────┴──────────┴─────────┘
+        
+```
+
+Extracting each channel
+
+Step 1 — Shift right to bring the target byte down to the lowest 8 bits.
+
+Step 2 — Mask with & 0xFF to discard all other bits.
+
+Step 3 — Cast to byte to store just 8 bits.
+
+
+Extract A — (color >> 24) & 0xFF
+
+```
+color    = 0xFF FF 00 00
+>> 24      shift right 24 bits
+= 0x00 00 00 FF   ← A is now in lowest byte
+& 0xFF   = 0x00 00 00 FF
+byte a   = 0xFF
+```
+
+Extract R — (color >> 16) & 0xFF
+```
+color    = 0xFF FF 00 00
+>> 16      shift right 16 bits
+= 0x00 00 FF FF   ← R is now in lowest byte (A is above)
+& 0xFF   = 0x00 00 00 FF   ← mask wipes out A, keeps only R
+byte r   = 0xFF
+
+```
+
+Extract G — (color >> 8) & 0xFF
+
+```
+color    = 0xFF FF 00 00
+>> 8       shift right 8 bits
+= 0x00 FF FF 00   ← G is now in lowest byte
+& 0xFF   = 0x00 00 00 00   ← G was 0x00 in this example
+byte g   = 0x00
+```
+
+Extract B — (color) & 0xFF
+```
+color    = 0xFF FF 00 00
+no shift needed, B is already in lowest byte
+& 0xFF   = 0x00 00 00 00   ← B was 0x00 in this example
+byte b   = 0x00
+```
+
+Why & 0xFF is necessary
+Without the mask, leftover bits from higher channels contaminate the result:
+```
+color    = 0xFF FF 00 00
+>> 16    = 0x00 00 FF FF   ← without mask, this gives 0xFFFF not 0xFF
+& 0xFF   = 0x00 00 00 FF   ← mask isolates only the bottom 8 bits ✓
+```
+
