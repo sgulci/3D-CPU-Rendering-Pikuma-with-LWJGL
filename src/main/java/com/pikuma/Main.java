@@ -23,8 +23,8 @@ public class Main {
 
     // ── Window configuration ─────────────────────────────────────────────────
     private static final String TITLE      = "LWJGL + SDL3 Pikuma Window";
-    private static int    WIDTH      = 1280;
-    private static int    HEIGHT     = 720;
+    private static int          WIDTH      = 1280;
+    private static int          HEIGHT     = 720;
     private static final int    TARGET_FPS = 60;
     private static final long   FRAME_MS   = 1000L / TARGET_FPS;
 
@@ -77,7 +77,6 @@ public class Main {
         checkSdlError(SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, true));
 
         // create window
-
         windowHandle = checkSdlError(SDLVideo.SDL_CreateWindowWithProperties(props));
 
         // create renderer
@@ -93,10 +92,34 @@ public class Main {
         checkSdlError( SDLRender.SDL_SetRenderDrawColorFloat(rendererHandle,  1.0f, 0.0f, 0.0f, 1.0f));
         checkSdlError(SDLRender.SDL_RenderClear(rendererHandle));
 
+        drawGrid();
+
         renderColorBuffer();
-        clearColorBuffer(0xFFFFFFFF);
+        clearColorBuffer(0xFF000000);
 
         checkSdlError(SDLRender.SDL_RenderPresent(rendererHandle));
+    }
+
+    private static void drawGrid() {
+        int color = 0xFF333333;
+        byte a = (byte) ((color >> 24) & 0xFF);
+        byte r = (byte) ((color >> 16) & 0xFF);
+        byte g = (byte) ((color >> 8)  & 0xFF);
+        byte b = (byte) ((color)       & 0xFF);
+
+
+        for (int y = 0; y < HEIGHT ; y+=10) {
+            for (int x = 0; x < WIDTH; x+=10) {
+                int index = (WIDTH * y + x) * 4; // 4 bytes per pixel
+
+                // SDL library uses little endian memory layout
+                // ARGB8888 little-endian memory layout: [B][G][R][A]
+                colorPixelBuffer.put(index,     b);
+                colorPixelBuffer.put(index + 1, g);
+                colorPixelBuffer.put(index + 2, r);
+                colorPixelBuffer.put(index + 3, a);
+            }
+        }
     }
 
     private static void update() {
